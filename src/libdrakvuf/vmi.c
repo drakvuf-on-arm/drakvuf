@@ -527,27 +527,19 @@ event_response_t smc_cb(vmi_instance_t vmi, vmi_event_t* event)
     struct wrapper* s = g_hash_table_lookup(drakvuf->breakpoint_lookup_pa, &pa);
     if (!s)
     {
-        if ( event->slat_id != drakvuf->altp2m_ids && event->slat_id != drakvuf->altp2m_idr )
-        {
-         	/*
-         	* No trap is currently registered for this location
-         	* but this event may have been triggered by one we just
-         	* removed.
-         	* If there is already a SMC instruction at pa we could reinject it,
-         	* as soon as this is supported by xen and libvmi. We could check if
-	        * this is necessary by reading pa and check if it is a SMC similiar
-        	* to int3_cb.
-        	 */
-	        return 0;
-        }
-        
         /*
          * We are right now in the 'simulated' single step. We look
          * for the original trap, thats why we want decrease the pa by 4.
          */
 	pa -= 4;
 	s = g_hash_table_lookup(drakvuf->breakpoint_lookup_pa, &pa);
-	if ( !s ) return 0;
+	if ( !s )
+	{
+	    event->arm_regs->pc += 4;
+	    rsp |= VMI_EVENT_RESPONSE_SET_REGISTERS;
+		
+	    return rsp;
+	}
     }
 
     drakvuf->in_callback = 1;
